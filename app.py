@@ -5,22 +5,20 @@ from datetime import datetime
 
 app = Flask(__name__)
 
-# SQLite Database Configuration
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///orders.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(app)
 
-# Order Model
 class Order(db.Model):
     __tablename__ = 'orders'
     
     id = db.Column(db.Integer, primary_key=True)
     customer_name = db.Column(db.String(255), nullable=False)
-    items = db.Column(db.Text, nullable=False)  # JSON string of items
+    items = db.Column(db.Text, nullable=False)
     quantity = db.Column(db.Integer, nullable=False)
     total_price = db.Column(db.Float, nullable=False)
-    status = db.Column(db.String(50), default='pending')  # pending, confirmed, completed, cancelled
+    status = db.Column(db.String(50), default='pending')
     created_at = db.Column(db.DateTime, default=datetime.now)
     
     def to_dict(self):
@@ -34,7 +32,6 @@ class Order(db.Model):
             'created_at': self.created_at.isoformat()
         }
 
-# Create tables
 with app.app_context():
     db.create_all()
 
@@ -152,15 +149,11 @@ def create_order():
             "error": "Order must contain at least one item"
         }), 400
 
-    # Calculate total quantity and price
-    total_quantity = sum(item.get("quantity", 1) for item in items)
-    total_price = sum(item.get("price", 0) * item.get("quantity", 1) for item in items)
+    total_quantity = sum(item.get("qty", item.get("quantity", 1)) for item in items)
+    total_price = sum(item.get("price", 0) * item.get("qty", item.get("quantity", 1)) for item in items)
     
-    # Convert items to JSON string
     import json
     items_json = json.dumps(items)
-    
-    # Create new order
     order = Order(
         customer_name=customer_name,
         items=items_json,
@@ -180,7 +173,6 @@ def create_order():
 
 @app.route("/api/order/<int:order_id>")
 def get_order(order_id):
-    """Get a specific order details"""
     order = Order.query.get_or_404(order_id)
     return jsonify({
         "order": order.to_dict()
@@ -197,19 +189,15 @@ def admin_orders():
 
 @app.route("/admin/add", methods=["GET", "POST"])
 def admin_add():
-    """Add a new order"""
     if request.method == "POST":
         customer_name = request.form.get("customer_name", "").strip()
         
         if not customer_name:
             return render_template("admin_add.html", error="Customer name is required"), 400
         
-        # Get selected items and quantities
         items = []
         total_price = 0
         total_quantity = 0
-        
-        # Get all menu items
         menu = get_menu_data()
         
         for item in menu:
@@ -228,7 +216,6 @@ def admin_add():
         if not items:
             return render_template("admin_add.html", menu=menu, error="Please select at least one item"), 400
         
-        # Create order
         import json
         order = Order(
             customer_name=customer_name,
@@ -249,7 +236,6 @@ def admin_add():
 
 @app.route("/admin/order/<int:order_id>/status", methods=["POST"])
 def update_order_status(order_id):
-    """Update order status"""
     order = Order.query.get_or_404(order_id)
     status = request.form.get("status", "pending")
     
@@ -262,7 +248,6 @@ def update_order_status(order_id):
 
 @app.route("/admin/order/<int:order_id>/cancel", methods=["POST"])
 def cancel_order(order_id):
-    """Cancel an order"""
     order = Order.query.get_or_404(order_id)
     order.status = 'cancelled'
     db.session.commit()
@@ -272,7 +257,6 @@ def cancel_order(order_id):
 
 @app.route("/admin/order/<int:order_id>/delete", methods=["POST"])
 def delete_order(order_id):
-    """Delete an order"""
     order = Order.query.get_or_404(order_id)
     db.session.delete(order)
     db.session.commit()
@@ -281,7 +265,6 @@ def delete_order(order_id):
 
 
 def get_menu_data():
-    """Get menu data for admin forms"""
     return [
         {
             "id": "bruschetta",
