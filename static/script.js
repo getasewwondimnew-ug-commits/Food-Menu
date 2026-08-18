@@ -383,6 +383,14 @@
       return;
     }
 
+    // Prompt for customer name
+    const customerName = prompt("Please enter your name:", "");
+    
+    if (!customerName || customerName.trim() === "") {
+      showToast("Customer name is required");
+      return;
+    }
+
     try {
       const response = await fetch("/api/orders", {
         method: "POST",
@@ -391,6 +399,7 @@
         },
         body: JSON.stringify({
           items: cart,
+          customer_name: customerName.trim(),
         }),
       });
 
